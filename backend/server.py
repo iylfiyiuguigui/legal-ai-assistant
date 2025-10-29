@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, File, UploadFile, HTTPException, Form, Depends, Request, Body
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 try:
     from gtts import gTTS
 except Exception:
@@ -138,6 +139,23 @@ if not os.environ.get('GEMINI_API_KEY'):
 
 # Create the main app without a prefix
 app = FastAPI()
+
+# Serve static files from frontend build
+static_path = ROOT_DIR.parent / "frontend" / "build" / "static"
+if static_path.exists():
+    app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+
+# Serve frontend index.html for all non-API routes
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API route not found")
+        
+    index_html = ROOT_DIR.parent / "frontend" / "build" / "index.html"
+    if index_html.exists():
+        return FileResponse(str(index_html))
+    else:
+        return {"error": "Frontend not built"}
 
 # MongoDB helper function
 def get_mongo_client():
